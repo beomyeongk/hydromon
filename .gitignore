@@ -1,0 +1,29 @@
+# Rust
+/target
+/Cargo.lock
+
+# Database
+/hydromon.db
+/hydromon.db-journal
+/hydromon.db-shm
+/hydromon.db-wal
+
+# Configuration
+/hydromon.toml
+
+# IDEs
+/.vscode
+/.idea
+/*.iml
+/.project
+/.settings
+/.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp/Logs
+*.log
+*.tmp
+*.bk

@@ -1,0 +1,12 @@
+pub mod cpu_freqs;
+pub mod cpu_modes;
+pub mod cpu_usage;
+pub mod disk_io;
+pub mod disk_storage;
+pub mod gpu_nvidia;
+pub mod memory_usage;
+pub mod network_connection;
+pub mod network_traffic;
+pub mod sys_activity;
+pub mod sys_summary;
+pub mod sys_temp;

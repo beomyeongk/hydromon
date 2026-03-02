@@ -1,0 +1,15 @@
+[package]
+name = "hydromon"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+time = "0.3"
+ctrlc = "3.4"
+procfs = "0.18"
+rusqlite = { version = "0.37", features = ["bundled", "serde_json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "1.0.1"
+libc = "0.2"
+nvml-wrapper = "0.12.0"

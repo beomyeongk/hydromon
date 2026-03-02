@@ -1,0 +1,34 @@
+[cpu_usage]
+enabled = true
+
+[cpu_freqs]
+enabled = true
+
+[cpu_modes]
+enabled = true
+
+[memory_usage]
+enabled = true
+
+[disk_io]
+enabled = true
+devices = ["nvme0n1"]
+
+[disk_storage]
+enabled = true
+mounts = ["/"]
+
+[network_traffic]
+enabled = true
+interfaces = ["enp290s2"]
+
+[network_connection]
+enabled = true
+
+[sys_temp]
+enabled = true
+devices = ["acpi_fan_0", "acpitz_1", "coretemp_7", "nvme_2"]
+
+[gpu_nvidia]
+enabled = true
+devices = ["gpu0"]

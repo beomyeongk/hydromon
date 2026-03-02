@@ -1,0 +1,4 @@
+--- CPU Stat Collection Benchmark (10 iterations each) ---
+1. Manual Method (/proc/stat parsing): 202.286µs
+2. procfs Library Method:             645.29µs
+3. sysinfo Library Method:            468.761µs
