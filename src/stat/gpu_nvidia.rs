@@ -9,6 +9,7 @@ pub struct GpuNvidiaStats {
 
 impl GpuNvidiaStats {
     pub fn new() -> Self {
+        // Initialize NVML, ignoring errors if it fails (e.g., driver missing)
         let nvml = Nvml::init().ok();
         Self { nvml }
     }

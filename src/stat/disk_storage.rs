@@ -27,11 +27,13 @@ impl DiskStorageStats {
             let result = unsafe { libc::statvfs(path.as_ptr(), &mut stats) };
 
             if result == 0 {
-                let bsize = stats.f_bsize as u64;
-                let blocks = stats.f_blocks as u64;
-                let bfree = stats.f_bfree as u64;
+                let bsize = stats.f_bsize as u64; // Block size
+                let blocks = stats.f_blocks as u64; // Total blocks
+                let bfree = stats.f_bfree as u64; // Free blocks
 
+                // Total size in 16 KiB units (bytes / 16384)
                 let total = (blocks * bsize) / 16384;
+                // Used size in 16 KiB units
                 let free = (bfree * bsize) / 16384;
                 let used = total.saturating_sub(free);
 
