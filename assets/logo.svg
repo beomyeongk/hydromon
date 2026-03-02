@@ -1,0 +1,38 @@
+<svg width="500" height="130" viewBox="50 35 500 130" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00D2FF" />
+      <stop offset="100%" stop-color="#3A7BD5" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#00D2FF" />
+      <stop offset="100%" stop-color="#3A7BD5" />
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g transform="translate(120, 100)">
+    <!-- Hydrogen Electron Orbit (Single Orbit) -->
+    <ellipse cx="0" cy="0" rx="35" ry="75" fill="none" stroke="url(#grad2)" stroke-width="4" transform="rotate(45)" opacity="0.6"/>
+    
+    <!-- Nucleus (1 Proton) -->
+    <circle cx="0" cy="0" r="14" fill="url(#grad1)" filter="url(#glow)"/>
+    
+    <!-- Electron (1 Electron) on the orbit path -->
+    <!-- The angle 45 deg + the ellipse coordinate (x=rx*cos(t), y=ry*sin(t)) -->
+    <!-- Let's put it at t=0 (x=35, y=0) rotated by 45 degrees => x=35*cos(45)=24.7, y=35*sin(45)=24.7 -->
+    <circle cx="24.7" cy="24.7" r="6" fill="#00D2FF" filter="url(#glow)"/>
+  </g>
+
+  <!-- Text -->
+  <text x="204" y="126" font-family="'Futura', 'Arial', monospace" font-weight="500" font-size="76" fill="#3A7BD5" letter-spacing="-1.5">
+    hydromon
+  </text>
+
+</svg>

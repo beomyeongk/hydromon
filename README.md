@@ -1,5 +1,8 @@
-# hydromon
+<div align="center">
+  <img src="assets/logo.svg" alt="Hydromon Logo" width="400"/>
+</div>
 
+# hydromon
 A lightweight system monitoring daemon written in Rust.
 
 ## Features
