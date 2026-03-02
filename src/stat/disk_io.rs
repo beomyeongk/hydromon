@@ -61,15 +61,18 @@ impl DiskIoStats {
                         .saturating_sub(prev.stat.weighted_time_in_progress);
 
                     // r_kbps, w_kbps (KiB/s) -> INTEGER
+                    // (sectors * 512) / 1024 / seconds
                     let r_kbps =
                         (read_sectors_delta as f64 * 512.0 / 1024.0 / time_delta_secs) as u32;
                     let w_kbps =
                         (write_sectors_delta as f64 * 512.0 / 1024.0 / time_delta_secs) as u32;
 
+                    // iops -> 256 unit (val / 256)
                     let total_iops =
                         (reads_completed_delta + writes_completed_delta) as f64 / time_delta_secs;
                     let iops = (total_iops / 256.0) as u32;
 
+                    // r_await, w_await (ms) -> INTEGER
                     let r_await = if reads_completed_delta > 0 {
                         (time_reading_delta as f64 / reads_completed_delta as f64) as u32
                     } else {
@@ -81,9 +84,13 @@ impl DiskIoStats {
                         0
                     };
 
+                    // aqu_sz -> 1/16 unit (val * 16)
+                    // avg queue size = weighted_time_delta / time_delta
                     let aqu_sz_raw = weighted_time_doing_io_delta as f64 / time_delta_ms;
                     let aqu_sz = (aqu_sz_raw * 16.0) as u32;
 
+                    // util -> 1/16% unit (val * 16)
+                    // util % = (time_spent_delta / time_delta) * 100
                     let util_percent = (time_spent_doing_io_delta as f64 / time_delta_ms) * 100.0;
                     let util = (util_percent * 16.0) as u32;
 
