@@ -1,5 +1,5 @@
 use crate::config::SysTempConfig;
-use crate::db::SysTemp;
+use crate::db::{NameMapper, SysTemp};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,8 @@ impl SysTempStats {
         // Only map the devices specified in the config
         for device_name in &config.devices {
             if let Some(base_path) = system_devices.get(device_name) {
-                let sensors = Self::discover_sensors(base_path);
+                let allowed = config.sensor_filters.get(device_name);
+                let sensors = Self::discover_sensors(base_path, allowed);
                 if !sensors.is_empty() {
                     device_map.insert(device_name.clone(), sensors);
                 }
@@ -50,7 +51,10 @@ impl SysTempStats {
         Self { device_map }
     }
 
-    fn discover_sensors(base_path: &Path) -> Vec<(String, PathBuf)> {
+    fn discover_sensors(
+        base_path: &Path,
+        allowed_labels: Option<&Vec<String>>,
+    ) -> Vec<(String, PathBuf)> {
         let mut sensors = Vec::new();
         if let Ok(entries) = fs::read_dir(base_path) {
             for entry in entries.flatten() {
@@ -70,6 +74,13 @@ impl SysTempStats {
                             prefix.to_string()
                         };
 
+                        // If a filter is specified, only collect the labels in the filter
+                        if let Some(filter) = allowed_labels {
+                            if !filter.contains(&label) {
+                                continue;
+                            }
+                        }
+
                         sensors.push((label, input_path));
                     }
                 }
@@ -79,18 +90,36 @@ impl SysTempStats {
         sensors
     }
 
-    pub fn collect(&self, timestamp: i64) -> Result<Vec<SysTemp>, Box<dyn std::error::Error>> {
+    // Returns all (device_name, sensor_label) pairs discovered during construction.
+    // Used at startup to register these names into the `name_map` table.
+    pub fn all_names(&self) -> Vec<String> {
+        let mut names = Vec::new();
+        for (device_name, sensors) in &self.device_map {
+            names.push(device_name.clone());
+            for (sensor_label, _) in sensors {
+                names.push(sensor_label.clone());
+            }
+        }
+        names
+    }
+
+    pub fn collect(
+        &self,
+        timestamp: i64,
+        name_mapper: &NameMapper,
+    ) -> Result<Vec<SysTemp>, Box<dyn std::error::Error>> {
         let mut metrics = Vec::new();
 
         for (device_name, sensors) in &self.device_map {
+            let device_id = name_mapper.get(device_name);
             for (sensor_label, input_path) in sensors {
                 if let Ok(content) = fs::read_to_string(input_path) {
                     if let Ok(millidegrees) = content.trim().parse::<f64>() {
                         let temp = (millidegrees / 1000.0).round() as i32;
                         metrics.push(SysTemp {
                             timestamp,
-                            device_name: device_name.clone(),
-                            sensor_label: sensor_label.clone(),
+                            device_id,
+                            sensor_id: name_mapper.get(sensor_label),
                             temp,
                         });
                     }

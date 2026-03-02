@@ -54,6 +54,44 @@ fn main() -> Result<(), Box<dyn Error>> {
     let sys_temp_stats = SysTempStats::new(&config.sys_temp);
     let mut gpu_nvidia_stats = GpuNvidiaStats::new();
 
+    // Register all string names into name_map (INSERT OR IGNORE),
+    // then load the entire table into a NameMapper for O(1) in-memory lookups.
+    {
+        let mut all_names: Vec<&str> = Vec::new();
+
+        // disk_io device names
+        for s in &config.disk_io.devices {
+            all_names.push(s.as_str());
+        }
+        // disk_storage mount points
+        for s in &config.disk_storage.mounts {
+            all_names.push(s.as_str());
+        }
+        // network interfaces
+        for s in &config.network_traffic.interfaces {
+            all_names.push(s.as_str());
+        }
+        // gpu device names
+        for s in &config.gpu_nvidia.devices {
+            all_names.push(s.as_str());
+        }
+
+        // sys_temp: device names + sensor labels (discovered from filesystem at new())
+        let temp_names = sys_temp_stats.all_names();
+
+        // Merge owned strings as &str
+        let all_names_owned: Vec<String> = all_names.iter().map(|s| s.to_string()).collect();
+        let mut combined: Vec<&str> = all_names_owned.iter().map(|s| s.as_str()).collect();
+        for s in &temp_names {
+            combined.push(s.as_str());
+        }
+
+        db_manager.register_names(&combined)?;
+    }
+
+    let name_mapper = db_manager.load_name_mapper()?;
+    println!("NameMapper loaded.");
+
     println!("Starting monitoring... (2s interval)");
 
     while running.load(Ordering::SeqCst) {
@@ -68,8 +106,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         let cpu_usage = cpu_usage_stats.update(now_in_secs)?;
         let sys_summary = sys_summary_stats.collect(now_in_secs)?;
         let sys_activity = sys_activity_stats.update(now_in_secs)?;
+
         let disk_io = if config.disk_io.enabled {
-            match disk_io_stats.update(now_in_secs, &config.disk_io.devices) {
+            match disk_io_stats.update(now_in_secs, &config.disk_io.devices, &name_mapper) {
                 Ok(stats) => Some(stats),
                 Err(e) => {
                     eprintln!("Disk IO collection error: {}", e);
@@ -79,8 +118,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         } else {
             None
         };
+
         let disk_storage = if config.disk_storage.enabled {
-            match disk_storage_stats.update(now_in_secs, &config.disk_storage.mounts) {
+            match disk_storage_stats.update(now_in_secs, &config.disk_storage.mounts, &name_mapper)
+            {
                 Ok(stats) => Some(stats),
                 Err(e) => {
                     eprintln!("Disk Storage collection error: {}", e);
@@ -92,7 +133,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         let network_traffic = if config.network_traffic.enabled {
-            match network_traffic_stats.update(now_in_secs, &config.network_traffic.interfaces) {
+            match network_traffic_stats.update(
+                now_in_secs,
+                &config.network_traffic.interfaces,
+                &name_mapper,
+            ) {
                 Ok(stats) => Some(stats),
                 Err(e) => {
                     eprintln!("Network Traffic collection error: {}", e);
@@ -116,7 +161,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         let sys_temp = if config.sys_temp.enabled {
-            match sys_temp_stats.collect(now_in_secs) {
+            match sys_temp_stats.collect(now_in_secs, &name_mapper) {
                 Ok(stats) => Some(stats),
                 Err(e) => {
                     eprintln!("Sys Temp collection error: {}", e);
@@ -128,7 +173,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         let gpu_nvidia = if config.gpu_nvidia.enabled {
-            match gpu_nvidia_stats.collect(now_in_secs, &config.gpu_nvidia) {
+            match gpu_nvidia_stats.collect(now_in_secs, &config.gpu_nvidia, &name_mapper) {
                 Ok(stats) => Some(stats),
                 Err(e) => {
                     eprintln!("Gpu Nvidia collection error: {}", e);

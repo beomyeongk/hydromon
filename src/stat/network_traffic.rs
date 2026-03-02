@@ -1,4 +1,4 @@
-use crate::db::NetworkTraffic;
+use crate::db::{NameMapper, NetworkTraffic};
 use procfs::net::dev_status;
 use std::collections::HashMap;
 use std::io;
@@ -27,6 +27,7 @@ impl NetworkTrafficStats {
         &mut self,
         now_in_secs: i64,
         target_interfaces: &[String],
+        name_mapper: &NameMapper,
     ) -> io::Result<Vec<NetworkTraffic>> {
         let current_net_dev = dev_status().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         let now = Instant::now();
@@ -53,7 +54,7 @@ impl NetworkTrafficStats {
 
                     results.push(NetworkTraffic {
                         timestamp: now_in_secs,
-                        interface: interface_name.clone(),
+                        name_id: name_mapper.get(&interface_name),
                         rx_kbps,
                         tx_kbps,
                         rx_pckps,

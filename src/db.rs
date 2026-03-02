@@ -1,9 +1,27 @@
 use rusqlite::{Connection, Result, Transaction, params};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 
 pub struct DbManager {
     conn: Connection,
+}
+
+/// In-memory cache of name → id mappings from the `name_map` table.
+/// Populated once at startup; no DB reads needed during the main loop.
+pub struct NameMapper {
+    map: HashMap<String, i64>,
+}
+
+impl NameMapper {
+    /// Look up the integer ID for a given name.
+    /// Panics if the name was not registered at startup (programming error).
+    pub fn get(&self, name: &str) -> i64 {
+        *self
+            .map
+            .get(name)
+            .unwrap_or_else(|| panic!("NameMapper: name '{}' was not registered at startup", name))
+    }
 }
 
 pub struct CpuModes {
@@ -44,7 +62,7 @@ pub struct MemoryUsage {
 
 pub struct DiskIo {
     pub timestamp: i64,
-    pub device_name: String,
+    pub name_id: i64, // FK → name_map.id  (was: device_name TEXT)
     pub r_kbps: u32,
     pub w_kbps: u32,
     pub r_await: u32,
@@ -57,15 +75,15 @@ pub struct DiskIo {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct DiskStorage {
     pub timestamp: i64,
-    pub mount_point: String,
-    pub total: u32, // 1 unit = 16 KiB
-    pub used: u32,  // 1 unit = 16 KiB
+    pub name_id: i64, // FK → name_map.id  (was: mount_point TEXT)
+    pub total: u32,   // 1 unit = 16 KiB
+    pub used: u32,    // 1 unit = 16 KiB
     pub num_inodes: i64,
 }
 
 pub struct NetworkTraffic {
     pub timestamp: i64,
-    pub interface: String,
+    pub name_id: i64, // FK → name_map.id  (was: interface TEXT)
     pub rx_kbps: u32,
     pub tx_kbps: u32,
     pub rx_pckps: u32,
@@ -99,14 +117,14 @@ pub struct SysActivity {
 
 pub struct SysTemp {
     pub timestamp: i64,
-    pub device_name: String,
-    pub sensor_label: String,
+    pub device_id: i64, // FK → name_map.id  (was: device_name TEXT)
+    pub sensor_id: i64, // FK → name_map.id  (was: sensor_label TEXT)
     pub temp: i32,
 }
 
 pub struct GpuNvidia {
     pub timestamp: i64,
-    pub device_name: String,
+    pub name_id: i64, // FK → name_map.id  (was: device_name TEXT)
     pub fan_speed: u32,
     pub temp: i32,
     pub power_w: u32,
@@ -123,6 +141,15 @@ impl DbManager {
     }
 
     fn init_tables(&self) -> Result<()> {
+        // Universal name → integer-id lookup table
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS name_map (
+                id   INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL
+            )",
+            [],
+        )?;
+
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS cpu_modes (
                 timestamp INTEGER PRIMARY KEY,
@@ -173,7 +200,7 @@ impl DbManager {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS disk_io (
                 timestamp INTEGER,
-                device_name TEXT,
+                name_id INTEGER,
                 r_kbps INTEGER,
                 w_kbps INTEGER,
                 r_await INTEGER,
@@ -181,7 +208,7 @@ impl DbManager {
                 aqu_sz INTEGER,
                 util INTEGER,
                 iops INTEGER,
-                PRIMARY KEY (timestamp, device_name)
+                PRIMARY KEY (timestamp, name_id)
             )",
             [],
         )?;
@@ -189,11 +216,11 @@ impl DbManager {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS disk_storage (
                 timestamp INTEGER,
-                mount_point TEXT,
+                name_id INTEGER,
                 total INTEGER,
                 used INTEGER,
                 num_inodes INTEGER,
-                PRIMARY KEY (timestamp, mount_point)
+                PRIMARY KEY (timestamp, name_id)
             )",
             [],
         )?;
@@ -201,12 +228,12 @@ impl DbManager {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS network_traffic (
                 timestamp INTEGER,
-                interface TEXT,
+                name_id INTEGER,
                 rx_kbps INTEGER,
                 tx_kbps INTEGER,
                 rx_pckps INTEGER,
                 tx_pckps INTEGER,
-                PRIMARY KEY (timestamp, interface)
+                PRIMARY KEY (timestamp, name_id)
             )",
             [],
         )?;
@@ -248,10 +275,10 @@ impl DbManager {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS sys_temp (
                 timestamp INTEGER,
-                device_name TEXT,
-                sensor_label TEXT,
+                device_id INTEGER,
+                sensor_id INTEGER,
                 temp INTEGER,
-                PRIMARY KEY (timestamp, device_name, sensor_label)
+                PRIMARY KEY (timestamp, device_id, sensor_id)
             )",
             [],
         )?;
@@ -259,18 +286,43 @@ impl DbManager {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS gpu_nvidia (
                 timestamp INTEGER,
-                device_name TEXT,
+                name_id INTEGER,
                 fan_speed INTEGER,
                 temp INTEGER,
                 power_w INTEGER,
                 vram_used_mib INTEGER,
                 vram_total_mib INTEGER,
-                PRIMARY KEY (timestamp, device_name)
+                PRIMARY KEY (timestamp, name_id)
             )",
             [],
         )?;
 
         Ok(())
+    }
+
+    /// Insert names that are not yet in `name_map` (INSERT OR IGNORE).
+    /// Call once at startup with every possible string key your metrics will use.
+    pub fn register_names(&self, names: &[&str]) -> Result<()> {
+        let mut stmt = self
+            .conn
+            .prepare("INSERT OR IGNORE INTO name_map (name) VALUES (?1)")?;
+        for name in names {
+            stmt.execute([name])?;
+        }
+        Ok(())
+    }
+
+    /// Load the entire `name_map` table into a `NameMapper` for O(1) in-memory lookups.
+    pub fn load_name_mapper(&self) -> Result<NameMapper> {
+        let mut stmt = self.conn.prepare("SELECT id, name FROM name_map")?;
+        let map: HashMap<String, i64> = stmt
+            .query_map([], |row| {
+                let id: i64 = row.get(0)?;
+                let name: String = row.get(1)?;
+                Ok((name, id))
+            })?
+            .collect::<Result<_>>()?;
+        Ok(NameMapper { map })
     }
 
     pub fn transaction(&mut self) -> Result<Transaction<'_>> {
@@ -338,14 +390,14 @@ impl DbManager {
 
     pub fn insert_disk_io(tx: &Transaction, metrics: &[DiskIo]) -> Result<()> {
         let mut stmt = tx.prepare(
-            "INSERT INTO disk_io (timestamp, device_name, r_kbps, w_kbps, r_await, w_await, aqu_sz, util, iops)
+            "INSERT INTO disk_io (timestamp, name_id, r_kbps, w_kbps, r_await, w_await, aqu_sz, util, iops)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
         )?;
 
         for metric in metrics {
             stmt.execute(params![
                 metric.timestamp,
-                metric.device_name,
+                metric.name_id,
                 metric.r_kbps,
                 metric.w_kbps,
                 metric.r_await,
@@ -363,14 +415,14 @@ impl DbManager {
         stats: &[DiskStorage],
     ) -> Result<(), rusqlite::Error> {
         let mut stmt = tx.prepare(
-            "INSERT INTO disk_storage (timestamp, mount_point, total, used, num_inodes)
+            "INSERT INTO disk_storage (timestamp, name_id, total, used, num_inodes)
              VALUES (?1, ?2, ?3, ?4, ?5)",
         )?;
 
         for stat in stats {
             stmt.execute((
                 stat.timestamp,
-                &stat.mount_point,
+                stat.name_id,
                 stat.total,
                 stat.used,
                 stat.num_inodes,
@@ -381,14 +433,14 @@ impl DbManager {
 
     pub fn insert_network_traffic(tx: &Transaction, metrics: &[NetworkTraffic]) -> Result<()> {
         let mut stmt = tx.prepare(
-            "INSERT INTO network_traffic (timestamp, interface, rx_kbps, tx_kbps, rx_pckps, tx_pckps)
+            "INSERT INTO network_traffic (timestamp, name_id, rx_kbps, tx_kbps, rx_pckps, tx_pckps)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         )?;
 
         for metric in metrics {
             stmt.execute(params![
                 metric.timestamp,
-                metric.interface,
+                metric.name_id,
                 metric.rx_kbps,
                 metric.tx_kbps,
                 metric.rx_pckps,
@@ -446,15 +498,15 @@ impl DbManager {
 
     pub fn insert_sys_temp(tx: &Transaction, metrics: &[SysTemp]) -> Result<()> {
         let mut stmt = tx.prepare(
-            "INSERT INTO sys_temp (timestamp, device_name, sensor_label, temp)
+            "INSERT INTO sys_temp (timestamp, device_id, sensor_id, temp)
              VALUES (?1, ?2, ?3, ?4)",
         )?;
 
         for metric in metrics {
             stmt.execute(params![
                 metric.timestamp,
-                metric.device_name,
-                metric.sensor_label,
+                metric.device_id,
+                metric.sensor_id,
                 metric.temp,
             ])?;
         }
@@ -463,14 +515,14 @@ impl DbManager {
 
     pub fn insert_gpu_nvidia(tx: &Transaction, metrics: &[GpuNvidia]) -> Result<()> {
         let mut stmt = tx.prepare(
-            "INSERT INTO gpu_nvidia (timestamp, device_name, fan_speed, temp, power_w, vram_used_mib, vram_total_mib)
+            "INSERT INTO gpu_nvidia (timestamp, name_id, fan_speed, temp, power_w, vram_used_mib, vram_total_mib)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         )?;
 
         for metric in metrics {
             stmt.execute(params![
                 metric.timestamp,
-                metric.device_name,
+                metric.name_id,
                 metric.fan_speed,
                 metric.temp,
                 metric.power_w,
