@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
@@ -64,6 +65,8 @@ pub struct NetworkConnectionConfig {
 pub struct SysTempConfig {
     pub enabled: bool,
     pub devices: Vec<String>,
+    #[serde(default)]
+    pub sensor_filters: HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -111,6 +114,7 @@ impl Config {
             sys_temp: SysTempConfig {
                 enabled: true,
                 devices: detect_sys_temp_devices(),
+                sensor_filters: Default::default(),
             },
             gpu_nvidia: GpuNvidiaConfig {
                 enabled: true,

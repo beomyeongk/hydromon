@@ -1,5 +1,5 @@
 use crate::config::GpuNvidiaConfig;
-use crate::db::GpuNvidia;
+use crate::db::{GpuNvidia, NameMapper};
 use nvml_wrapper::Nvml;
 use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
 
@@ -18,6 +18,7 @@ impl GpuNvidiaStats {
         &mut self,
         timestamp: i64,
         config: &GpuNvidiaConfig,
+        name_mapper: &NameMapper,
     ) -> Result<Vec<GpuNvidia>, String> {
         let mut metrics = Vec::new();
 
@@ -42,7 +43,7 @@ impl GpuNvidiaStats {
 
                     metrics.push(GpuNvidia {
                         timestamp,
-                        device_name: device_name.clone(),
+                        name_id: name_mapper.get(device_name),
                         fan_speed,
                         temp,
                         power_w,
