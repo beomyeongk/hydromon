@@ -65,8 +65,6 @@ pub struct NetworkConnectionConfig {
 pub struct SysTempConfig {
     pub enabled: bool,
     pub devices: Vec<String>,
-    /// 디바이스명 → 허용할 센서 레이블 목록.
-    /// 항목이 없으면 해당 디바이스의 모든 센서를 수집합니다.
     #[serde(default)]
     pub sensor_filters: HashMap<String, Vec<String>>,
 }
