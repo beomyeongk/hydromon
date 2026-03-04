@@ -135,6 +135,12 @@ pub struct GpuNvidia {
 impl DbManager {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self> {
         let conn = Connection::open(path)?;
+
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;\n\
+             PRAGMA synchronous = NORMAL;"
+        )?;
+
         let db = DbManager { conn };
         db.init_tables()?;
         Ok(db)
@@ -328,6 +334,11 @@ impl DbManager {
     pub fn transaction(&mut self) -> Result<Transaction<'_>> {
         self.conn.transaction()
     }
+
+    pub fn checkpoint(&self) -> Result<()> {
+        self.conn.execute_batch("PRAGMA wal_checkpoint(FULL);")
+    }
+
 
     pub fn insert_cpu(tx: &Transaction, metric: &CpuModes) -> Result<()> {
         tx.execute(
@@ -531,5 +542,18 @@ impl DbManager {
             ])?;
         }
         Ok(())
+    }
+
+    // end of primary impl block
+}
+
+impl Drop for DbManager {
+    fn drop(&mut self) {
+        if let Err(e) = self.checkpoint() {
+            eprintln!(
+                "hydromon: failed to checkpoint WAL on shutdown: {}",
+                e
+            );
+        }
     }
 }
