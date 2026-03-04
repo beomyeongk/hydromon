@@ -1,5 +1,6 @@
 mod common;
 mod db;
+mod http;
 mod stat;
 
 use std::error::Error;
@@ -37,6 +38,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let config = Config::initialize("hydromon.toml")?;
     println!("Loaded configuration: {:?}", config);
+
+    let http_handle = http::start("0.0.0.0:8080", running.clone());
 
     let mut db_manager = DbManager::new("hydromon.db")?;
     println!("SQLite database loaded.");
@@ -235,6 +238,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     db_manager.checkpoint()?;
+    http_handle.join().ok();
 
     println!("Terminated gracefully.");
     Ok(())
