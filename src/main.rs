@@ -234,6 +234,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         thread::sleep(Duration::from_secs(2));
     }
 
+    db_manager.checkpoint()?;
+
     println!("Terminated gracefully.");
     Ok(())
 }
