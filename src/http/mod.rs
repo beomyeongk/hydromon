@@ -1,5 +1,7 @@
+pub mod common;
 pub mod cpu_modes;
 pub mod health;
+pub mod memory_usage;
 
 use rusqlite::{Connection, OpenFlags};
 use std::sync::Arc;
@@ -32,6 +34,7 @@ pub fn start(addr: &str, db_path: &str, running: Arc<AtomicBool>) -> thread::Joi
                     match (method, path) {
                         (Method::Get, "/health") => health::handle(request),
                         (Method::Get, "/cpu_modes") => cpu_modes::handle(request, &conn),
+                        (Method::Get, "/memory_usage") => memory_usage::handle(request, &conn),
                         _ => {
                             let response =
                                 tiny_http::Response::from_string("Not Found").with_status_code(404);

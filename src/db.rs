@@ -50,6 +50,7 @@ pub struct CpuUsage {
     pub usages: Vec<i8>, // 1 unit = 1%, index is core_id
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct MemoryUsage {
     pub timestamp: i64,
     pub total: u32,

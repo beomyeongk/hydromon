@@ -1,4 +1,4 @@
-use crate::db::CpuModes;
+use crate::db::MemoryUsage;
 use crate::http::common::{apply_time_filter, parse_query};
 use rusqlite::Connection;
 use tiny_http::{Header, Request, Response};
@@ -13,7 +13,7 @@ pub fn handle(request: Request, conn: &Connection) {
         }
     };
 
-    let mut sql = "SELECT timestamp, user, nice, system, idle, iowait, irq, softirq, steal, guest, guest_nice FROM cpu_modes WHERE 1=1".to_string();
+    let mut sql = "SELECT timestamp, total, free, available, buffers, cached, swap_total, swap_usage FROM memory_usage WHERE 1=1".to_string();
     let mut sql_params: Vec<rusqlite::types::Value> = Vec::new();
 
     apply_time_filter(&params, &mut sql, &mut sql_params);
@@ -36,29 +36,26 @@ pub fn handle(request: Request, conn: &Connection) {
         .collect();
 
     let rows_res = stmt.query_map(&*p_refs, |row| {
-        Ok(CpuModes {
+        Ok(MemoryUsage {
             timestamp: row.get(0)?,
-            user: row.get(1)?,
-            nice: row.get(2)?,
-            system: row.get(3)?,
-            idle: row.get(4)?,
-            iowait: row.get(5)?,
-            irq: row.get(6)?,
-            softirq: row.get(7)?,
-            steal: row.get(8)?,
-            guest: row.get(9)?,
-            guest_nice: row.get(10)?,
+            total: row.get(1)?,
+            free: row.get(2)?,
+            available: row.get(3)?,
+            buffers: row.get(4)?,
+            cached: row.get(5)?,
+            swap_total: row.get(6)?,
+            swap_usage: row.get(7)?,
         })
     });
 
-    let mut modes = Vec::new();
+    let mut usages = Vec::new();
     if let Ok(iter) = rows_res {
         for row in iter.filter_map(|r| r.ok()) {
-            modes.push(row);
+            usages.push(row);
         }
     }
 
-    match serde_json::to_string(&modes) {
+    match serde_json::to_string(&usages) {
         Ok(json) => {
             let mut response = Response::from_string(json).with_status_code(200);
             if let Ok(header) = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]) {
