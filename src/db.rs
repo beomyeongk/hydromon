@@ -24,6 +24,7 @@ impl NameMapper {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct CpuModes {
     pub timestamp: i64,
     pub user: i8,
@@ -49,6 +50,7 @@ pub struct CpuUsage {
     pub usages: Vec<i8>, // 1 unit = 1%, index is core_id
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct MemoryUsage {
     pub timestamp: i64,
     pub total: u32,
@@ -138,7 +140,7 @@ impl DbManager {
 
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;\n\
-             PRAGMA synchronous = NORMAL;"
+             PRAGMA synchronous = NORMAL;",
         )?;
 
         let db = DbManager { conn };
@@ -338,7 +340,6 @@ impl DbManager {
     pub fn checkpoint(&self) -> Result<()> {
         self.conn.execute_batch("PRAGMA wal_checkpoint(FULL);")
     }
-
 
     pub fn insert_cpu(tx: &Transaction, metric: &CpuModes) -> Result<()> {
         tx.execute(
@@ -550,10 +551,7 @@ impl DbManager {
 impl Drop for DbManager {
     fn drop(&mut self) {
         if let Err(e) = self.checkpoint() {
-            eprintln!(
-                "hydromon: failed to checkpoint WAL on shutdown: {}",
-                e
-            );
+            eprintln!("hydromon: failed to checkpoint WAL on shutdown: {}", e);
         }
     }
 }
