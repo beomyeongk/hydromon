@@ -45,6 +45,7 @@ pub struct CpuFreqs {
     pub freqs: Vec<i8>, // 1 unit = 100MHz, index is core_id
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct CpuUsage {
     pub timestamp: i64,
     pub usages: Vec<i8>, // 1 unit = 1%, index is core_id
