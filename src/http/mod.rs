@@ -4,10 +4,14 @@ pub mod cpu_modes;
 pub mod cpu_usage;
 pub mod disk_io;
 pub mod disk_storage;
+pub mod gpu_nvidia;
 pub mod health;
 pub mod memory_usage;
 pub mod network_connection;
 pub mod network_traffic;
+pub mod sys_activity;
+pub mod sys_summary;
+pub mod sys_temp;
 
 use rusqlite::{Connection, OpenFlags};
 use std::sync::Arc;
@@ -47,6 +51,10 @@ pub fn start(addr: &str, db_path: &str, running: Arc<AtomicBool>) -> thread::Joi
                         (Method::Get, "/disk_storage") => disk_storage::handle(request, &conn),
                         (Method::Get, "/network_traffic") => network_traffic::handle(request, &conn),
                         (Method::Get, "/network_connection") => network_connection::handle(request, &conn),
+                        (Method::Get, "/sys_summary") => sys_summary::handle(request, &conn),
+                        (Method::Get, "/sys_activity") => sys_activity::handle(request, &conn),
+                        (Method::Get, "/sys_temp") => sys_temp::handle(request, &conn),
+                        (Method::Get, "/gpu_nvidia") => gpu_nvidia::handle(request, &conn),
                         _ => {
                             let response =
                                 tiny_http::Response::from_string("Not Found").with_status_code(404);
