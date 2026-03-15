@@ -2,8 +2,12 @@ pub mod common;
 pub mod cpu_freqs;
 pub mod cpu_modes;
 pub mod cpu_usage;
+pub mod disk_io;
+pub mod disk_storage;
 pub mod health;
 pub mod memory_usage;
+pub mod network_connection;
+pub mod network_traffic;
 
 use rusqlite::{Connection, OpenFlags};
 use std::sync::Arc;
@@ -39,6 +43,10 @@ pub fn start(addr: &str, db_path: &str, running: Arc<AtomicBool>) -> thread::Joi
                         (Method::Get, "/memory_usage") => memory_usage::handle(request, &conn),
                         (Method::Get, "/cpu_freqs") => cpu_freqs::handle(request, &conn),
                         (Method::Get, "/cpu_usage") => cpu_usage::handle(request, &conn),
+                        (Method::Get, "/disk_io") => disk_io::handle(request, &conn),
+                        (Method::Get, "/disk_storage") => disk_storage::handle(request, &conn),
+                        (Method::Get, "/network_traffic") => network_traffic::handle(request, &conn),
+                        (Method::Get, "/network_connection") => network_connection::handle(request, &conn),
                         _ => {
                             let response =
                                 tiny_http::Response::from_string("Not Found").with_status_code(404);
