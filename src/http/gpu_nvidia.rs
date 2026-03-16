@@ -12,6 +12,11 @@ struct GpuNvidiaRow {
     power_w: u32,
     vram_used_mib: u32,
     vram_total_mib: u32,
+    gpu_clock_mhz: u32,
+    mem_clock_mhz: u32,
+    gpu_util: u32,
+    enc_util: u32,
+    dec_util: u32,
 }
 
 #[derive(Serialize)]
@@ -31,7 +36,8 @@ pub fn handle(request: Request, conn: &Connection) {
     };
 
     let mut sql =
-        "SELECT g.timestamp, n.name, g.fan_speed, g.temp, g.power_w, g.vram_used_mib, g.vram_total_mib \
+        "SELECT g.timestamp, n.name, g.fan_speed, g.temp, g.power_w, g.vram_used_mib, g.vram_total_mib, \
+                g.gpu_clock_mhz, g.mem_clock_mhz, g.gpu_util, g.enc_util, g.dec_util \
          FROM gpu_nvidia g JOIN name_map n ON g.name_id = n.id WHERE 1=1"
             .to_string();
     let mut sql_params: Vec<rusqlite::types::Value> = Vec::new();
@@ -64,6 +70,11 @@ pub fn handle(request: Request, conn: &Connection) {
             power_w: row.get(4)?,
             vram_used_mib: row.get(5)?,
             vram_total_mib: row.get(6)?,
+            gpu_clock_mhz: row.get(7)?,
+            mem_clock_mhz: row.get(8)?,
+            gpu_util: row.get(9)?,
+            enc_util: row.get(10)?,
+            dec_util: row.get(11)?,
         })
     });
 

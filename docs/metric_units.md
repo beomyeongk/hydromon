@@ -176,5 +176,12 @@ This document describes the unit and encoding of each field as stored in the dat
 | `power_w` | u32 | 1 W | `value` W |
 | `vram_used_mib` | u32 | 1 MiB | `value` MiB |
 | `vram_total_mib` | u32 | 1 MiB | `value` MiB |
+| `gpu_clock_mhz` | u32 | 1 MHz | `value` MHz (current graphics clock) |
+| `mem_clock_mhz` | u32 | 1 MHz | `value` MHz (current memory clock) |
+| `gpu_util` | u32 | 1 % | `value` % |
+| `enc_util` | u32 | 1 % | `value` % (NVML encoder utilization) |
+| `dec_util` | u32 | 1 % | `value` % (NVML decoder utilization) |
 
-> `power_w = nvml_power_mW / 1000`
+> `power_w = nvml_power_mW / 1000`  
+> `gpu_clock_mhz` and `mem_clock_mhz` are the actual running clocks via `clock_info()`, not the application-set target clocks.  
+> `enc_util` / `dec_util` are obtained via `nvmlDeviceGetEncoderUtilization` / `nvmlDeviceGetDecoderUtilization`; supported on Kepler or newer. Returns 0 if unsupported.
