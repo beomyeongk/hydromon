@@ -1,7 +1,7 @@
 use crate::config::GpuNvidiaConfig;
 use crate::db::{GpuNvidia, NameMapper};
 use nvml_wrapper::Nvml;
-use nvml_wrapper::enum_wrappers::device::TemperatureSensor;
+use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
 
 pub struct GpuNvidiaStats {
     nvml: Option<Nvml>,
@@ -41,6 +41,21 @@ impl GpuNvidiaStats {
                         .map(|info| (info.total / (1024 * 1024)) as u32)
                         .unwrap_or(0);
 
+                    let gpu_clock_mhz = device.clock_info(Clock::Graphics).unwrap_or(0);
+                    let mem_clock_mhz = device.clock_info(Clock::Memory).unwrap_or(0);
+                    let gpu_util = device
+                        .utilization_rates()
+                        .map(|u| u.gpu)
+                        .unwrap_or(0);
+                    let enc_util = device
+                        .encoder_utilization()
+                        .map(|u| u.utilization)
+                        .unwrap_or(0);
+                    let dec_util = device
+                        .decoder_utilization()
+                        .map(|u| u.utilization)
+                        .unwrap_or(0);
+
                     metrics.push(GpuNvidia {
                         timestamp,
                         name_id: name_mapper.get(device_name),
@@ -49,6 +64,11 @@ impl GpuNvidiaStats {
                         power_w,
                         vram_used_mib,
                         vram_total_mib,
+                        gpu_clock_mhz,
+                        mem_clock_mhz,
+                        gpu_util,
+                        enc_util,
+                        dec_util,
                     });
                 }
             }

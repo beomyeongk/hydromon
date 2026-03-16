@@ -133,6 +133,11 @@ pub struct GpuNvidia {
     pub power_w: u32,
     pub vram_used_mib: u32,
     pub vram_total_mib: u32,
+    pub gpu_clock_mhz: u32,
+    pub mem_clock_mhz: u32,
+    pub gpu_util: u32, // 1%
+    pub enc_util: u32, // 1%
+    pub dec_util: u32, // 1%
 }
 
 impl DbManager {
@@ -301,6 +306,11 @@ impl DbManager {
                 power_w INTEGER,
                 vram_used_mib INTEGER,
                 vram_total_mib INTEGER,
+                gpu_clock_mhz INTEGER,
+                mem_clock_mhz INTEGER,
+                gpu_util INTEGER,
+                enc_util INTEGER,
+                dec_util INTEGER,
                 PRIMARY KEY (timestamp, name_id)
             )",
             [],
@@ -528,8 +538,8 @@ impl DbManager {
 
     pub fn insert_gpu_nvidia(tx: &Transaction, metrics: &[GpuNvidia]) -> Result<()> {
         let mut stmt = tx.prepare(
-            "INSERT INTO gpu_nvidia (timestamp, name_id, fan_speed, temp, power_w, vram_used_mib, vram_total_mib)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            "INSERT INTO gpu_nvidia (timestamp, name_id, fan_speed, temp, power_w, vram_used_mib, vram_total_mib, gpu_clock_mhz, mem_clock_mhz, gpu_util, enc_util, dec_util)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         )?;
 
         for metric in metrics {
@@ -541,6 +551,11 @@ impl DbManager {
                 metric.power_w,
                 metric.vram_used_mib,
                 metric.vram_total_mib,
+                metric.gpu_clock_mhz,
+                metric.mem_clock_mhz,
+                metric.gpu_util,
+                metric.enc_util,
+                metric.dec_util,
             ])?;
         }
         Ok(())
