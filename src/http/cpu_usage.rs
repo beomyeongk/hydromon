@@ -20,7 +20,7 @@ pub fn handle(request: Request, conn: &Connection) {
         }
     };
 
-    let mut sql = "SELECT timestamp, json(usages) FROM cpu_usage WHERE 1=1".to_string();
+    let mut sql = "SELECT timestamp, usages FROM cpu_usage WHERE 1=1".to_string();
     let mut sql_params: Vec<rusqlite::types::Value> = Vec::new();
 
     apply_time_filter(&params, &mut sql, &mut sql_params);
@@ -43,8 +43,8 @@ pub fn handle(request: Request, conn: &Connection) {
         .collect();
 
     let rows_res = stmt.query_map(&*p_refs, |row| {
-        let usages_str: String = row.get(1)?;
-        let usages: Vec<i8> = serde_json::from_str(&usages_str).unwrap_or_default();
+        let raw: Vec<u8> = row.get(1)?;
+        let usages: Vec<i8> = raw.into_iter().map(|b| b as i8).collect();
         Ok(CpuUsage {
             timestamp: row.get(0)?,
             usages,
