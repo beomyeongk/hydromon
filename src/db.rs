@@ -392,21 +392,19 @@ impl DbManager {
     }
 
     pub fn insert_cpu_freqs(tx: &Transaction, metric: &CpuFreqs) -> Result<()> {
-        let json_data = serde_json::to_string(&metric.freqs)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let raw: Vec<u8> = metric.freqs.iter().map(|&x| x as u8).collect();
         tx.execute(
-            "INSERT INTO cpu_freqs (timestamp, freqs) VALUES (?1, jsonb(?2))",
-            params![metric.timestamp, json_data],
+            "INSERT INTO cpu_freqs (timestamp, freqs) VALUES (?1, ?2)",
+            params![metric.timestamp, raw],
         )?;
         Ok(())
     }
 
     pub fn insert_cpu_usage(tx: &Transaction, metric: &CpuUsage) -> Result<()> {
-        let json_data = serde_json::to_string(&metric.usages)
-            .map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(e)))?;
+        let raw: Vec<u8> = metric.usages.iter().map(|&x| x as u8).collect();
         tx.execute(
-            "INSERT INTO cpu_usage (timestamp, usages) VALUES (?1, jsonb(?2))",
-            params![metric.timestamp, json_data],
+            "INSERT INTO cpu_usage (timestamp, usages) VALUES (?1, ?2)",
+            params![metric.timestamp, raw],
         )?;
         Ok(())
     }
