@@ -29,7 +29,9 @@ This document describes the unit and encoding of each field as stored in the dat
 
 | Field | DB Type | Unit | Recover |
 |---|---|---|---|
-| `freqs[i]` | i8 (BLOB array) | 100 MHz | `value × 100` MHz |
+| `freqs[i]` | i8 (raw binary BLOB) | 100 MHz | `value × 100` MHz |
+
+> BLOB is a packed byte array: each byte stores one `i8` value reinterpreted as `u8` (bitwise identical). Element count = `length(freqs)` bytes.
 
 ---
 
@@ -39,7 +41,9 @@ This document describes the unit and encoding of each field as stored in the dat
 
 | Field | DB Type | Unit | Recover |
 |---|---|---|---|
-| `usages[i]` | i8 (BLOB array) | 1% | `value` % |
+| `usages[i]` | i8 (raw binary BLOB) | 1% | `value` % |
+
+> BLOB is a packed byte array: each byte stores one `i8` value reinterpreted as `u8` (bitwise identical). Element count = `length(usages)` bytes.
 
 ---
 
