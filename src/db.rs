@@ -120,9 +120,7 @@ pub struct SysActivity {
 
 pub struct SysTemp {
     pub timestamp: i64,
-    pub device_id: i64, // FK → name_map.id  (was: device_name TEXT)
-    pub sensor_id: i64, // FK → name_map.id  (was: sensor_label TEXT)
-    pub temp: i32,
+    pub data: String, // json representation {"id": temp_value}
 }
 
 pub struct GpuNvidia {
@@ -288,11 +286,8 @@ impl DbManager {
 
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS sys_temp (
-                timestamp INTEGER,
-                device_id INTEGER,
-                sensor_id INTEGER,
-                temp INTEGER,
-                PRIMARY KEY (timestamp, device_id, sensor_id)
+                timestamp INTEGER PRIMARY KEY,
+                data TEXT
             )",
             [],
         )?;
@@ -517,20 +512,12 @@ impl DbManager {
         Ok(())
     }
 
-    pub fn insert_sys_temp(tx: &Transaction, metrics: &[SysTemp]) -> Result<()> {
-        let mut stmt = tx.prepare(
-            "INSERT INTO sys_temp (timestamp, device_id, sensor_id, temp)
-             VALUES (?1, ?2, ?3, ?4)",
+    pub fn insert_sys_temp(tx: &Transaction, metric: &SysTemp) -> Result<()> {
+        tx.execute(
+            "INSERT INTO sys_temp (timestamp, data) VALUES (?1, ?2)",
+            params![metric.timestamp, metric.data],
         )?;
 
-        for metric in metrics {
-            stmt.execute(params![
-                metric.timestamp,
-                metric.device_id,
-                metric.sensor_id,
-                metric.temp,
-            ])?;
-        }
         Ok(())
     }
 

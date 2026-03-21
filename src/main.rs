@@ -165,7 +165,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let sys_temp = if config.sys_temp.enabled {
             match sys_temp_stats.collect(now_in_secs, &name_mapper) {
-                Ok(stats) => Some(stats),
+                Ok(stats) => stats,
                 Err(e) => {
                     eprintln!("Sys Temp collection error: {}", e);
                     None
@@ -220,9 +220,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         DbManager::insert_memory(&tx, &mem_usage)?;
         DbManager::insert_cpu_freqs(&tx, &cpu_freqs)?;
         if let Some(temp_data) = sys_temp {
-            if !temp_data.is_empty() {
-                DbManager::insert_sys_temp(&tx, &temp_data)?;
-            }
+            DbManager::insert_sys_temp(&tx, &temp_data)?;
         }
         if let Some(gpu_data) = gpu_nvidia {
             if !gpu_data.is_empty() {
