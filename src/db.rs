@@ -118,7 +118,7 @@ pub struct SysActivity {
     pub ctxt: u64,
 }
 
-pub struct SysTemp {
+pub struct Temperature {
     pub timestamp: i64,
     pub data: String, // json representation {"id": temp_value}
 }
@@ -285,7 +285,7 @@ impl DbManager {
         )?;
 
         self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS sys_temp (
+            "CREATE TABLE IF NOT EXISTS temperature (
                 timestamp INTEGER PRIMARY KEY,
                 data TEXT
             )",
@@ -512,9 +512,9 @@ impl DbManager {
         Ok(())
     }
 
-    pub fn insert_sys_temp(tx: &Transaction, metric: &SysTemp) -> Result<()> {
+    pub fn insert_temperature(tx: &Transaction, metric: &Temperature) -> Result<()> {
         tx.execute(
-            "INSERT INTO sys_temp (timestamp, data) VALUES (?1, ?2)",
+            "INSERT INTO temperature (timestamp, data) VALUES (?1, ?2)",
             params![metric.timestamp, metric.data],
         )?;
 

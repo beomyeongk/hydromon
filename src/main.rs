@@ -25,7 +25,7 @@ use stat::network_connection::NetworkConnectionStats;
 use stat::network_traffic::NetworkTrafficStats;
 use stat::sys_activity::SysActivityStats;
 use stat::sys_summary::SysSummaryStats;
-use stat::sys_temp::SysTempStats;
+use stat::temperature::TemperatureStats;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let running = Arc::new(AtomicBool::new(true));
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut network_connection_stats = NetworkConnectionStats::new();
     let sys_summary_stats = SysSummaryStats::new();
     let mut sys_activity_stats = SysActivityStats::new();
-    let sys_temp_stats = SysTempStats::new(&config.sys_temp);
+    let temperature_stats = TemperatureStats::new(&config.temperature);
     let mut gpu_nvidia_stats = GpuNvidiaStats::new();
 
     // Register all string names into name_map (INSERT OR IGNORE),
@@ -79,8 +79,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             all_names.push(s.as_str());
         }
 
-        // sys_temp: device names + sensor labels (discovered from filesystem at new())
-        let temp_names = sys_temp_stats.all_names();
+        // temperature: sensor names (discovered from filesystem at new())
+        let temp_names = temperature_stats.all_names();
 
         // Merge owned strings as &str
         let all_names_owned: Vec<String> = all_names.iter().map(|s| s.to_string()).collect();
@@ -163,11 +163,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             None
         };
 
-        let sys_temp = if config.sys_temp.enabled {
-            match sys_temp_stats.collect(now_in_secs, &name_mapper) {
+        let sys_temperature = if config.temperature.enabled {
+            match temperature_stats.collect(now_in_secs, &name_mapper) {
                 Ok(stats) => stats,
                 Err(e) => {
-                    eprintln!("Sys Temp collection error: {}", e);
+                    eprintln!("Temperature collection error: {}", e);
                     None
                 }
             }
@@ -219,8 +219,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         DbManager::insert_memory(&tx, &mem_usage)?;
         DbManager::insert_cpu_freqs(&tx, &cpu_freqs)?;
-        if let Some(temp_data) = sys_temp {
-            DbManager::insert_sys_temp(&tx, &temp_data)?;
+        if let Some(temp_data) = sys_temperature {
+            DbManager::insert_temperature(&tx, &temp_data)?;
         }
         if let Some(gpu_data) = gpu_nvidia {
             if !gpu_data.is_empty() {

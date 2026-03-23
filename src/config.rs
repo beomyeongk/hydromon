@@ -14,7 +14,7 @@ pub struct Config {
     pub disk_storage: DiskStorageConfig,
     pub network_traffic: NetworkTrafficConfig,
     pub network_connection: NetworkConnectionConfig,
-    pub sys_temp: SysTempConfig,
+    pub temperature: TemperatureConfig,
     pub gpu_nvidia: GpuNvidiaConfig,
 }
 
@@ -62,7 +62,7 @@ pub struct NetworkConnectionConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
-pub struct SysTempConfig {
+pub struct TemperatureConfig {
     pub enabled: bool,
     pub devices: Vec<String>,
     #[serde(default)]
@@ -111,7 +111,7 @@ impl Config {
                 interfaces: detect_network_interfaces(),
             },
             network_connection: NetworkConnectionConfig { enabled: true },
-            sys_temp: SysTempConfig {
+            temperature: TemperatureConfig {
                 enabled: true,
                 devices: detect_sys_temp_devices(),
                 sensor_filters: Default::default(),

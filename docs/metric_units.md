@@ -157,15 +157,23 @@ This document describes the unit and encoding of each field as stored in the dat
 
 ---
 
-## sys_temp
+## temperature
 
 > Source: `/sys/class/hwmon/hwmon*/temp*_input` (millidegrees Celsius).
+> HTTP endpoint: `GET /temperature`
 
 | Field | DB Type | Unit | Recover |
 |---|---|---|---|
-| `temp` | i32 | 1 °C | `value` °C |
+| `data` | TEXT (JSON) | — | See below |
 
-> `temp = round(millidegrees / 1000)`
+The `temperature` table stores **one row per timestamp**. The `data` column is a JSON object where each key is a `name_map` integer ID (as a string) and each value is the temperature in °C:
+
+```json
+{"15": 34, "17": 32, "22": 28}
+```
+
+> `temp = round(millidegrees / 1000)` °C  
+> Sensor identity: `name_map[id]` returns `"device:sensor"` (e.g. `"coretemp:Core 0"`).
 
 ---
 

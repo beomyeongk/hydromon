@@ -1,16 +1,16 @@
-use crate::config::SysTempConfig;
-use crate::db::{NameMapper, SysTemp};
+use crate::config::TemperatureConfig;
+use crate::db::{NameMapper, Temperature};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub struct SysTempStats {
+pub struct TemperatureStats {
     // Maps a logical device name (e.g., nvme_0) to a list of (sensor_label, temp_input_path)
     device_map: HashMap<String, Vec<(String, PathBuf)>>,
 }
 
-impl SysTempStats {
-    pub fn new(config: &SysTempConfig) -> Self {
+impl TemperatureStats {
+    pub fn new(config: &TemperatureConfig) -> Self {
         let mut device_map = HashMap::new();
 
         if !config.enabled {
@@ -106,7 +106,7 @@ impl SysTempStats {
         &self,
         timestamp: i64,
         name_mapper: &NameMapper,
-    ) -> Result<Option<SysTemp>, Box<dyn std::error::Error>> {
+    ) -> Result<Option<Temperature>, Box<dyn std::error::Error>> {
         let mut sensor_data: HashMap<String, i32> = HashMap::new();
 
         for (device_name, sensors) in &self.device_map {
@@ -129,7 +129,7 @@ impl SysTempStats {
 
         let json_data = serde_json::to_string(&sensor_data)?;
 
-        Ok(Some(SysTemp {
+        Ok(Some(Temperature {
             timestamp,
             data: json_data,
         }))

@@ -4,7 +4,7 @@ use serde::Serialize;
 use tiny_http::{Header, Request, Response};
 
 #[derive(Serialize)]
-struct SysTempRow {
+struct TemperatureRow {
     timestamp: i64,
     device: String, // name_map 조인 (device_id → name)
     sensor: String, // name_map 조인 (sensor_id → name)
@@ -12,9 +12,9 @@ struct SysTempRow {
 }
 
 #[derive(Serialize)]
-struct SysTempResponse {
+struct TemperatureResponse {
     size: usize,
-    data: Vec<SysTempRow>,
+    data: Vec<TemperatureRow>,
 }
 
 pub fn handle(request: Request, conn: &Connection) {
@@ -28,7 +28,7 @@ pub fn handle(request: Request, conn: &Connection) {
     };
 
     let mut sql = "SELECT t.timestamp, nm.name, CAST(j.value AS INTEGER) \
-         FROM sys_temp t, json_each(t.data) j \
+         FROM temperature t, json_each(t.data) j \
          JOIN name_map nm ON nm.id = CAST(j.key AS INTEGER) \
          WHERE 1=1"
         .to_string();
@@ -59,7 +59,7 @@ pub fn handle(request: Request, conn: &Connection) {
         let device = parts.next().unwrap_or("").to_string();
         let sensor = parts.next().unwrap_or("").to_string();
 
-        Ok(SysTempRow {
+        Ok(TemperatureRow {
             timestamp: row.get(0)?,
             device,
             sensor,
@@ -74,7 +74,7 @@ pub fn handle(request: Request, conn: &Connection) {
         }
     }
 
-    let body = SysTempResponse {
+    let body = TemperatureResponse {
         size: data.len(),
         data,
     };

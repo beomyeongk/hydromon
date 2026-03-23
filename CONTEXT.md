@@ -29,8 +29,8 @@
 ### B. Database & Storage Optimization
 The database schema (`hydromon.db`) is highly optimized for space efficiency using SQLite:
 - **Scaled Integers**: Floating point numbers are aggressively avoided. Metrics (percentages, rates, latencies) are scaled (e.g., x100, x16) and cast to integers (`i8`, `u32`, `u64`) to save space.
-- **JSONB Encoding**: Complex parallel metrics (like per-core frequencies) are compacted into SQLite JSONB blob arrays instead of using separate rows.
-- **Normalized Tables**: High-cardinality metrics (like disk I/O, network traffic, system temperatures) use normalized tables with composite primary keys (`timestamp`, `device_name`/`interface`/`sensor_label`).
+- **JSONB Encoding**: Complex parallel metrics (like per-core frequencies, temperature readings) are compacted into a single JSON TEXT column per timestamp instead of using separate rows.
+- **Normalized Tables**: High-cardinality metrics (like disk I/O, network traffic) use normalized tables with composite primary keys (`timestamp`, `device_name`/`interface`).
 
 ## 4. Current Feature Status
 The following metrics and features are currently implemented and actively collected:
@@ -41,7 +41,7 @@ The following metrics and features are currently implemented and actively collec
 - Network Traffic
 - System Summary (Uptime, Tasks, Load Avg, FDs)
 - System Activity (Interrupts, Context Switches)
-- System Temperatures (Auto-detected from sysfs)
+- System Temperatures (`temperature` table, JSON blob keyed by `name_map` ID)
 - GPU Nvidia Metrics (Fan, Temp, Power, VRAM via NVML API)
 
 ## 5. Known Quirks & Tips
