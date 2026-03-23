@@ -9,4 +9,4 @@ pub mod network_connection;
 pub mod network_traffic;
 pub mod sys_activity;
 pub mod sys_summary;
-pub mod sys_temp;
+pub mod temperature;

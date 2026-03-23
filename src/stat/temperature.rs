@@ -1,16 +1,16 @@
-use crate::config::SysTempConfig;
-use crate::db::{NameMapper, SysTemp};
+use crate::config::TemperatureConfig;
+use crate::db::{NameMapper, Temperature};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub struct SysTempStats {
+pub struct TemperatureStats {
     // Maps a logical device name (e.g., nvme_0) to a list of (sensor_label, temp_input_path)
     device_map: HashMap<String, Vec<(String, PathBuf)>>,
 }
 
-impl SysTempStats {
-    pub fn new(config: &SysTempConfig) -> Self {
+impl TemperatureStats {
+    pub fn new(config: &TemperatureConfig) -> Self {
         let mut device_map = HashMap::new();
 
         if !config.enabled {
@@ -95,9 +95,8 @@ impl SysTempStats {
     pub fn all_names(&self) -> Vec<String> {
         let mut names = Vec::new();
         for (device_name, sensors) in &self.device_map {
-            names.push(device_name.clone());
             for (sensor_label, _) in sensors {
-                names.push(sensor_label.clone());
+                names.push(format!("{}:{}", device_name, sensor_label));
             }
         }
         names
@@ -107,26 +106,32 @@ impl SysTempStats {
         &self,
         timestamp: i64,
         name_mapper: &NameMapper,
-    ) -> Result<Vec<SysTemp>, Box<dyn std::error::Error>> {
-        let mut metrics = Vec::new();
+    ) -> Result<Option<Temperature>, Box<dyn std::error::Error>> {
+        let mut sensor_data: HashMap<String, i32> = HashMap::new();
 
         for (device_name, sensors) in &self.device_map {
-            let device_id = name_mapper.get(device_name);
             for (sensor_label, input_path) in sensors {
                 if let Ok(content) = fs::read_to_string(input_path) {
                     if let Ok(millidegrees) = content.trim().parse::<f64>() {
                         let temp = (millidegrees / 1000.0).round() as i32;
-                        metrics.push(SysTemp {
-                            timestamp,
-                            device_id,
-                            sensor_id: name_mapper.get(sensor_label),
-                            temp,
-                        });
+                        
+                        let full_name = format!("{}:{}", device_name, sensor_label);
+                        let id = name_mapper.get(&full_name);
+                        sensor_data.insert(id.to_string(), temp);
                     }
                 }
             }
         }
 
-        Ok(metrics)
+        if sensor_data.is_empty() {
+            return Ok(None);
+        }
+
+        let json_data = serde_json::to_string(&sensor_data)?;
+
+        Ok(Some(Temperature {
+            timestamp,
+            data: json_data,
+        }))
     }
 }

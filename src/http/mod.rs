@@ -11,7 +11,7 @@ pub mod network_connection;
 pub mod network_traffic;
 pub mod sys_activity;
 pub mod sys_summary;
-pub mod sys_temp;
+pub mod temperature;
 
 use rusqlite::{Connection, OpenFlags};
 use std::sync::Arc;
@@ -53,7 +53,7 @@ pub fn start(addr: &str, db_path: &str, running: Arc<AtomicBool>) -> thread::Joi
                         (Method::Get, "/network_connection") => network_connection::handle(request, &conn),
                         (Method::Get, "/sys_summary") => sys_summary::handle(request, &conn),
                         (Method::Get, "/sys_activity") => sys_activity::handle(request, &conn),
-                        (Method::Get, "/sys_temp") => sys_temp::handle(request, &conn),
+                        (Method::Get, "/temperature") => temperature::handle(request, &conn),
                         (Method::Get, "/gpu_nvidia") => gpu_nvidia::handle(request, &conn),
                         _ => {
                             let response =

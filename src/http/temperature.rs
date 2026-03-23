@@ -4,17 +4,17 @@ use serde::Serialize;
 use tiny_http::{Header, Request, Response};
 
 #[derive(Serialize)]
-struct SysTempRow {
+struct TemperatureRow {
     timestamp: i64,
-    device: String,  // name_map 조인 (device_id → name)
-    sensor: String,  // name_map 조인 (sensor_id → name)
+    device: String, // name_map 조인 (device_id → name)
+    sensor: String, // name_map 조인 (sensor_id → name)
     temp: i32,
 }
 
 #[derive(Serialize)]
-struct SysTempResponse {
+struct TemperatureResponse {
     size: usize,
-    data: Vec<SysTempRow>,
+    data: Vec<TemperatureRow>,
 }
 
 pub fn handle(request: Request, conn: &Connection) {
@@ -27,19 +27,16 @@ pub fn handle(request: Request, conn: &Connection) {
         }
     };
 
-    // device_id, sensor_id 각각 name_map에 JOIN
-    let mut sql =
-        "SELECT t.timestamp, nd.name AS device, ns.name AS sensor, t.temp \
-         FROM sys_temp t \
-         JOIN name_map nd ON t.device_id = nd.id \
-         JOIN name_map ns ON t.sensor_id = ns.id \
+    let mut sql = "SELECT t.timestamp, nm.name, CAST(j.value AS INTEGER) \
+         FROM temperature t, json_each(t.data) j \
+         JOIN name_map nm ON nm.id = CAST(j.key AS INTEGER) \
          WHERE 1=1"
-            .to_string();
+        .to_string();
     let mut sql_params: Vec<rusqlite::types::Value> = Vec::new();
 
     apply_time_filter(&params, &mut sql, &mut sql_params);
 
-    sql.push_str(" ORDER BY t.timestamp ASC, nd.name ASC, ns.name ASC");
+    sql.push_str(" ORDER BY t.timestamp ASC, nm.name ASC");
 
     let mut stmt = match conn.prepare(&sql) {
         Ok(s) => s,
@@ -57,11 +54,16 @@ pub fn handle(request: Request, conn: &Connection) {
         .collect();
 
     let rows_res = stmt.query_map(&*p_refs, |row| {
-        Ok(SysTempRow {
+        let full_name: String = row.get(1)?;
+        let mut parts = full_name.splitn(2, ':');
+        let device = parts.next().unwrap_or("").to_string();
+        let sensor = parts.next().unwrap_or("").to_string();
+
+        Ok(TemperatureRow {
             timestamp: row.get(0)?,
-            device: row.get(1)?,
-            sensor: row.get(2)?,
-            temp: row.get(3)?,
+            device,
+            sensor,
+            temp: row.get(2)?,
         })
     });
 
@@ -72,7 +74,7 @@ pub fn handle(request: Request, conn: &Connection) {
         }
     }
 
-    let body = SysTempResponse {
+    let body = TemperatureResponse {
         size: data.len(),
         data,
     };
