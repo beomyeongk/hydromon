@@ -39,8 +39,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::initialize("hydromon.toml")?;
     println!("Loaded configuration: {:?}", config);
 
-    let http_handle = http::start("0.0.0.0:8080", "hydromon.db", running.clone());
-
     let mut db_manager = DbManager::new("hydromon.db")?;
     println!("SQLite database loaded.");
 
@@ -94,6 +92,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let name_mapper = db_manager.load_name_mapper()?;
     println!("NameMapper loaded.");
+
+    let http_handle = http::start("0.0.0.0:8080", "hydromon.db", running.clone());
 
     println!("Starting monitoring... (2s interval)");
 
