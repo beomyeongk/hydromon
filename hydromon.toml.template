@@ -25,11 +25,11 @@ interfaces = ["enp290s2"]
 [network_connection]
 enabled = true
 
-[sys_temp]
+[temperature]
 enabled = true
 devices = ["acpi_fan_0", "acpitz_1", "coretemp_7", "nvme_2"]
 
-# [sys_temp.sensor_filters]
+# [temperature.sensor_filters]
 # coretemp_7 = ["Package id 0"]
 
 [gpu_nvidia]
