@@ -163,7 +163,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             None
         };
 
-        let sys_temperature = if config.temperature.enabled {
+        let temperature = if config.temperature.enabled {
             match temperature_stats.collect(now_in_secs, &name_mapper) {
                 Ok(stats) => stats,
                 Err(e) => {
@@ -219,7 +219,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
         DbManager::insert_memory(&tx, &mem_usage)?;
         DbManager::insert_cpu_freqs(&tx, &cpu_freqs)?;
-        if let Some(temp_data) = sys_temperature {
+        if let Some(temp_data) = temperature {
             DbManager::insert_temperature(&tx, &temp_data)?;
         }
         if let Some(gpu_data) = gpu_nvidia {
