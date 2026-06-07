@@ -1,12 +1,15 @@
 use crate::config::TemperatureConfig;
 use crate::db::{NameMapper, Temperature};
+use crate::schema::{DynamicSchema, SchemaField};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 pub struct TemperatureStats {
-    // Maps a logical device name (e.g., nvme_0) to a list of (sensor_label, temp_input_path)
-    device_map: HashMap<String, Vec<(String, PathBuf)>>,
+    // Sorted list of devices and their sensors
+    devices: Vec<(String, Vec<(String, PathBuf)>)>,
+    pub schema: Option<DynamicSchema>,
+    pub schema_id: Option<i64>,
 }
 
 impl TemperatureStats {
@@ -14,7 +17,11 @@ impl TemperatureStats {
         let mut device_map = HashMap::new();
 
         if !config.enabled {
-            return Self { device_map };
+            return Self {
+                devices: Vec::new(),
+                schema: None,
+                schema_id: None,
+            };
         }
 
         // Build a temporary map of all available hardware monitors on the system
@@ -48,7 +55,34 @@ impl TemperatureStats {
             }
         }
 
-        Self { device_map }
+        let mut sorted_devices: Vec<_> = device_map.into_iter().collect();
+        sorted_devices.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let mut fields = Vec::new();
+        for (dev_name, sensors) in &sorted_devices {
+            for (label, _) in sensors {
+                let name = format!("{}:{}", dev_name, label);
+                fields.push(SchemaField {
+                    name,
+                    size: 2,
+                    field_type: "int".to_string(),
+                });
+            }
+        }
+
+        let (schema, schema_id) = if !fields.is_empty() {
+            let s = DynamicSchema::new(fields);
+            let id = s.schema_id();
+            (Some(s), Some(id))
+        } else {
+            (None, None)
+        };
+
+        Self {
+            devices: sorted_devices,
+            schema,
+            schema_id,
+        }
     }
 
     fn discover_sensors(
@@ -90,48 +124,41 @@ impl TemperatureStats {
         sensors
     }
 
-    // Returns all (device_name, sensor_label) pairs discovered during construction.
-    // Used at startup to register these names into the `name_map` table.
-    pub fn all_names(&self) -> Vec<String> {
-        let mut names = Vec::new();
-        for (device_name, sensors) in &self.device_map {
-            for (sensor_label, _) in sensors {
-                names.push(format!("{}:{}", device_name, sensor_label));
-            }
-        }
-        names
-    }
+
 
     pub fn collect(
         &self,
         timestamp: i64,
-        name_mapper: &NameMapper,
+        _name_mapper: &NameMapper,
     ) -> Result<Option<Temperature>, Box<dyn std::error::Error>> {
-        let mut sensor_data: HashMap<String, i32> = HashMap::new();
-
-        for (device_name, sensors) in &self.device_map {
-            for (sensor_label, input_path) in sensors {
-                if let Ok(content) = fs::read_to_string(input_path) {
-                    if let Ok(millidegrees) = content.trim().parse::<f64>() {
-                        let temp = (millidegrees / 1000.0).round() as i32;
-                        
-                        let full_name = format!("{}:{}", device_name, sensor_label);
-                        let id = name_mapper.get(&full_name);
-                        sensor_data.insert(id.to_string(), temp);
-                    }
-                }
-            }
-        }
-
-        if sensor_data.is_empty() {
+        if self.schema_id.is_none() || self.devices.is_empty() {
             return Ok(None);
         }
 
-        let json_data = serde_json::to_string(&sensor_data)?;
+        let mut data_bytes = Vec::new();
+        let mut any_collected = false;
+
+        for (_device_name, sensors) in &self.devices {
+            for (_sensor_label, input_path) in sensors {
+                let mut temp: i16 = 0; // Default to 0 if failed to read
+                if let Ok(content) = fs::read_to_string(input_path) {
+                    if let Ok(millidegrees) = content.trim().parse::<f64>() {
+                        temp = (millidegrees / 100.0).round() as i16;
+                        any_collected = true;
+                    }
+                }
+                data_bytes.extend_from_slice(&temp.to_le_bytes());
+            }
+        }
+
+        if !any_collected {
+            return Ok(None);
+        }
 
         Ok(Some(Temperature {
             timestamp,
-            data: json_data,
+            schema_id: self.schema_id.unwrap(),
+            data: data_bytes,
         }))
     }
 }

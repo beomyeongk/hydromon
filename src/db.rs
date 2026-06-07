@@ -120,7 +120,8 @@ pub struct SysActivity {
 
 pub struct Temperature {
     pub timestamp: i64,
-    pub data: String, // json representation {"id": temp_value}
+    pub schema_id: i64,
+    pub data: Vec<u8>,
 }
 
 pub struct GpuNvidia {
@@ -153,7 +154,14 @@ impl DbManager {
     }
 
     fn init_tables(&self) -> Result<()> {
-        // Universal name → integer-id lookup table
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS dynamic_schemas (
+                schema_id INTEGER PRIMARY KEY,
+                schema_info TEXT NOT NULL
+            )",
+            [],
+        )?;
+
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS name_map (
                 id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -287,7 +295,8 @@ impl DbManager {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS temperature (
                 timestamp INTEGER PRIMARY KEY,
-                data TEXT
+                schema_id INTEGER,
+                data BLOB
             )",
             [],
         )?;
@@ -337,6 +346,14 @@ impl DbManager {
             })?
             .collect::<Result<_>>()?;
         Ok(NameMapper { map })
+    }
+
+    pub fn register_dynamic_schema(&self, schema_id: i64, schema_info: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO dynamic_schemas (schema_id, schema_info) VALUES (?1, ?2)",
+            params![schema_id, schema_info],
+        )?;
+        Ok(())
     }
 
     pub fn transaction(&mut self) -> Result<Transaction<'_>> {
@@ -514,8 +531,8 @@ impl DbManager {
 
     pub fn insert_temperature(tx: &Transaction, metric: &Temperature) -> Result<()> {
         tx.execute(
-            "INSERT INTO temperature (timestamp, data) VALUES (?1, ?2)",
-            params![metric.timestamp, metric.data],
+            "INSERT INTO temperature (timestamp, schema_id, data) VALUES (?1, ?2, ?3)",
+            params![metric.timestamp, metric.schema_id, metric.data],
         )?;
 
         Ok(())
