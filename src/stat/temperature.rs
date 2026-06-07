@@ -64,7 +64,7 @@ impl TemperatureStats {
                 let name = format!("{}:{}", dev_name, label);
                 fields.push(SchemaField {
                     name,
-                    size: 1,
+                    size: 2,
                     field_type: "int".to_string(),
                 });
             }
@@ -140,10 +140,10 @@ impl TemperatureStats {
 
         for (_device_name, sensors) in &self.devices {
             for (_sensor_label, input_path) in sensors {
-                let mut temp: i8 = 0; // Default to 0 if failed to read
+                let mut temp: i16 = 0; // Default to 0 if failed to read
                 if let Ok(content) = fs::read_to_string(input_path) {
                     if let Ok(millidegrees) = content.trim().parse::<f64>() {
-                        temp = (millidegrees / 1000.0).round() as i8;
+                        temp = (millidegrees / 100.0).round() as i16;
                         any_collected = true;
                     }
                 }
