@@ -3,6 +3,8 @@ mod db;
 mod http;
 mod stat;
 
+mod schema;
+
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -77,17 +79,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             all_names.push(s.as_str());
         }
 
-        // temperature: sensor names (discovered from filesystem at new())
-        let temp_names = temperature_stats.all_names();
-
         // Merge owned strings as &str
         let all_names_owned: Vec<String> = all_names.iter().map(|s| s.to_string()).collect();
-        let mut combined: Vec<&str> = all_names_owned.iter().map(|s| s.as_str()).collect();
-        for s in &temp_names {
-            combined.push(s.as_str());
-        }
+        let combined: Vec<&str> = all_names_owned.iter().map(|s| s.as_str()).collect();
 
         db_manager.register_names(&combined)?;
+
+        // Register temperature dynamic schema if present
+        if let (Some(schema_id), Some(schema)) = (temperature_stats.schema_id, &temperature_stats.schema) {
+            db_manager.register_dynamic_schema(schema_id, &schema.to_json())?;
+        }
     }
 
     let name_mapper = db_manager.load_name_mapper()?;
